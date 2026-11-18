@@ -1,0 +1,21 @@
+========================================================================
+REPORT: scaled_m02  |  masses m1=1, m2=200
+========================================================================
+[Setup]
+  Device                      : NVIDIA GeForce GTX 1650
+  Network                     : [1,128,128,2], trainable parameters = 17026
+  Data points N_d             : 39
+  Collocation points N_f      : 2000
+  Test points N_test          : 2000
+  Normalised loss weights     : ode=8.8628e-07, ic_disp=2.4998e-02, ic_vel=8.8628e-05, data=9.7491e-01
+  Adam epochs                 : 60000 (initial lr = 1e-3)
+[Computational cost]
+  Training time (Adam)        :     1039.5 s  (17.3 min)
+  Time per epoch              :      17.32 ms
+[Test errors, physical units, in %]
+  state        rel. L2 error    max err/max|ref|
+  x1               9.924e-01           1.541e+00
+  x2               9.530e-01           1.135e+00
+  x1dot            5.420e-01           2.301e+00
+  x2dot            5.259e-01           1.987e+00
+========================================================================

@@ -1,0 +1,7 @@
+state,rel_L2_percent,max_over_maxref_percent
+x1,2.105768e-02,3.041239e-02
+x2,1.908288e-02,2.910460e-02
+x1dot,1.430559e-01,2.400791e-01
+x2dot,1.323388e-01,2.232391e-01
+time_adam_s,1001.52,
+params,17026,

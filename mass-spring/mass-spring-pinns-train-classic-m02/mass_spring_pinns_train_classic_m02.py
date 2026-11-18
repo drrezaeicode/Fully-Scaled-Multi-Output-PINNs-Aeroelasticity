@@ -2,9 +2,9 @@
 
 #%% 1. Import Necessary Libraries
 
-from IPython import get_ipython
-get_ipython().run_line_magic('clear','')
-get_ipython().run_line_magic('reset' , '-f')
+# from IPython import get_ipython
+# get_ipython().run_line_magic('clear','')
+# get_ipython().run_line_magic('reset' , '-f')
 import numpy as np
 from scipy.integrate import solve_ivp
 import matplotlib.pyplot as plt; plt.close("all")
@@ -288,8 +288,8 @@ if __name__ == "__main__":
     
     
 
-    save_globals("_mass-spring-pinns-train-classic-m02.pth", scope=globals())
-    torch.save(model.state_dict(), "_mass-spring-pinns-train-classic-m02_network.pth")
+    # save_globals("_mass-spring-pinns-train-classic-m02.pth", scope=globals())
+    # torch.save(model.state_dict(), "_mass-spring-pinns-train-classic-m02_network.pth")
 
     
     
