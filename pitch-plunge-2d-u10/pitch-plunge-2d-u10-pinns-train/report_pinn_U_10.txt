@@ -1,0 +1,25 @@
+========================================================================
+FULLY SCALED PINN REPORT  |  U = 10.0 m/s
+========================================================================
+[Setup]
+  Device                      : NVIDIA GeForce GTX 1650
+  Network                     : [1,128,128,2], trainable parameters = 17026
+  Data points N_d             : 39
+  Collocation points N_f      : 6000
+  Test points N_test          : 2000
+  Normalised loss weights     : ode=1.9566e-02, ic_disp=1.9566e-03, ic_vel=1.9566e-04, data=9.7828e-01
+  Adam epochs                 : 100000 (lr = 1e-03)
+  L-BFGS outer steps          : 500  (loss/gradient evaluations: 8945)
+[Computational cost]
+  Adam time                   :     2079.9 s
+  L-BFGS time                 :      411.4 s
+  Total training time         :     2491.2 s  (41.5 min)
+  Time per Adam epoch         :      20.80 ms
+[Test errors, physical units, in %]
+  state        rel. L2 error    max err/max|ref|
+  h                1.312e+00           2.731e+00
+  alpha            1.641e+00           4.333e+00
+  hdot             1.813e+00           6.324e+00
+  alphadot         1.967e+00           8.558e+00
+  mean (h,alpha)   1.476e+00           3.532e+00
+========================================================================

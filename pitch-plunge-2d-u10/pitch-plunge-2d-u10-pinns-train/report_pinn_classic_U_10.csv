@@ -1,0 +1,9 @@
+state,rel_L2_percent,max_over_maxref_percent
+h,9.926999e+01,9.041606e+01
+alpha,1.008601e+02,1.162183e+02
+hdot,1.000088e+02,9.918551e+01
+alphadot,1.000704e+02,1.009525e+02
+time_adam_s,2353.53,
+time_lbfgs_s,89.83,
+time_total_s,2443.35,
+params,17026,
