@@ -193,7 +193,7 @@ if __name__ == "__main__":
     loss_weights_tensor = torch.tensor([ 1, 1, 0.1, 0.1, .01, .01, 40, 40], dtype = torch.float32, device = device)#should run
     loss_weights_tensor = torch.tensor([ 1, 1, 0.1, 0.1, .01, .01, 50, 50], dtype = torch.float32, device = device)#should run
     loss_weights_tensor = torch.tensor([ 1, 0.1, 0.01, 50], dtype = torch.float32, device = device)#should run
-    #loss_weights_tensor = torch.tensor([ 0, 0, 0, 1], dtype = torch.float32, device = device)#should run
+    #loss_weights_tensor = torch.tensor([0.000001, .1, 0.01, 1], dtype = torch.float32, device = device)#should run
 
     #ODE_indices = [0,1]
     #IC_indices = [2,3,4,5]
