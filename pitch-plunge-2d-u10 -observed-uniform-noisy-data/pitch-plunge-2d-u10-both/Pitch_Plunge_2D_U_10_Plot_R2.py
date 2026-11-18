@@ -1,0 +1,216 @@
+# ======================================================================
+# 1) Import the training module FIRST (it may wipe the namespace)
+# ======================================================================
+import sys, os
+sys.path.append(os.path.abspath("../pitch-plunge-2d-u10-pinns-train-uniform-noisy-data"))
+from Pitch_Plunge_2D_U_10_pinns_noisy_std_1_100 import PINNs_MLPs
+_PINN = PINNs_MLPs
+
+# ======================================================================
+# 2) Re-import everything
+# ======================================================================
+import sys, os, gc
+import warnings
+warnings.filterwarnings("ignore", category=FutureWarning)
+warnings.filterwarnings("ignore", category=UserWarning)
+
+import numpy as np
+import torch
+import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator, AutoMinorLocator
+from torch_data_scale import MinMaxScalerPytorchTX as mmsptx   # My Library
+
+PINNs_MLPs = _PINN
+plt.close("all")
+gc.collect()
+device = "cpu"
+os.makedirs("figures", exist_ok=True)
+
+DIR = "../pitch-plunge-2d-u10-pinns-train-uniform-noisy-data"
+
+
+# ======================================================================
+# Helper: load workspace into a dict (nothing touches globals)
+# ======================================================================
+def load_ws(path):
+    ws = torch.load(path, map_location="cpu", weights_only=False)
+    plt.close("all")
+    bad = [k for k, v in ws.items()
+           if "matplotlib" in type(v).__module__
+           or (isinstance(v, np.ndarray) and v.dtype == object)
+           or (isinstance(v, (list, tuple)) and len(v) > 0
+               and "matplotlib" in type(v[0]).__module__)]
+    for k in bad:
+        ws.pop(k)
+    gc.collect()
+    print(f"loaded {len(ws)} items from {path}")
+    return ws
+
+
+# ======================================================================
+# Load all noise cases  (order = sigma 0, 1, 5, 10, 15, 20 %)
+# ======================================================================
+cases = ["0_100", "1_100", "5_100", "1_10", "15_100", "2_10"]
+
+U_pred, dU_pred = {}, {}
+scaler = None
+
+for c in cases:
+    ws = load_ws(f"{DIR}/pitch_plunge_2D_U_10_pinns_noisy_std_{c}.pth")
+
+    # common tensors (same in every run; the last workspace is kept, as before)
+    t_exac_tensor     = ws["t_exac_tensor"]
+    u_exac_tensor     = ws["u_exac_tensor"]
+    u_exac_dot_tensor = ws["u_exac_dot_tensor"]
+    t_test_tensor     = ws["t_test_tensor"]
+
+    if scaler is None:
+        scaler = mmsptx(t_range=(-1, 1), x_range=(-1, 1), device=device).fit(
+            t_exac_tensor, u_exac_tensor)
+
+    model = PINNs_MLPs([1, 128, 128, 2]).to(device)
+    model.load_state_dict(torch.load(f"{DIR}/pitch_plunge_2D_U_10_pinns_noisy_std_{c}_network.pth",
+                                     map_location=device, weights_only=True))
+    model.eval()
+
+    t_s = ws["t_test_scaled_tensor"].detach().clone().requires_grad_(True)
+    u_s = model(t_s)                                         # (N,2)
+    du_s = torch.zeros_like(u_s)
+    for k in range(2):
+        du_s[:, k:k+1] = torch.autograd.grad(
+            u_s[:, k:k+1], t_s,
+            grad_outputs=torch.ones_like(u_s[:, k:k+1]),
+            create_graph=True)[0]
+
+    U_pred[c]  = scaler.inverse_transformX(u_s).detach()
+    dU_pred[c] = scaler.scale_first_derivative_inverse_transform(du_s).detach()
+
+n = lambda x: x.detach().cpu().numpy()
+t_te = n(t_test_tensor)
+
+
+# ======================================================================
+# Journal-accurate setup
+# ======================================================================
+plt.rcParams.update({
+    "font.family": "Times New Roman",
+    "mathtext.fontset": "custom",
+    "mathtext.rm": "Times New Roman",
+    "mathtext.it": "Times New Roman:italic",
+    "mathtext.bf": "Times New Roman:bold",
+    "axes.labelsize": 10,
+    "xtick.labelsize": 8,
+    "ytick.labelsize": 8,
+    "legend.fontsize": 8,
+    "axes.labelcolor": "black",
+    "xtick.color": "black",
+    "ytick.color": "black",
+})
+plt.close("all")
+
+
+def save(fig, name):
+    fig.savefig(f"figures/{name}.png", dpi=600, bbox_inches="tight")
+    fig.savefig(f"figures/{name}.pdf", bbox_inches="tight")
+
+
+# ======================================================================
+# Error histories : Figures 1a-1d   (sigma = 0, 10, 20 %)
+# ======================================================================
+linestyles = [(0, (5, 1, 1, 1, 1, 1)), "-", "--", "-.", ":"]
+colors     = ["#4D4D4D", "#0072B2", "#D55E00", "#009E73", "#CC79A7"]
+
+SHOWN = [("0_100", r"$\sigma = 0\%$"),
+         ("1_10",  r"$\sigma = 10\%$"),
+         ("2_10",  r"$\sigma = 20\%$")]
+
+err  = {c: n(u_exac_tensor     - U_pred[c])  for c, _ in SHOWN}
+derr = {c: n(u_exac_dot_tensor - dU_pred[c]) for c, _ in SHOWN}
+
+
+def error_fig(E, col, ylab, ncol):
+    fig = plt.figure(figsize=(3.35, 2.7)); ax = fig.add_subplot()
+    fig.subplots_adjust(left=0.18, bottom=0.18)
+    for i, (c, lab) in enumerate(SHOWN):
+        ax.plot(t_te, E[c][:, col], label=lab, color=colors[i], lw=1.0,
+                ls=linestyles[i], zorder=1)
+    ax.set_xlim([0, 2])
+    ax.set_xlabel(r"$t\,(\mathrm{s})$")
+    ax.set_ylabel(ylab)
+    ax.tick_params(direction="out", length=4, width=0.8)
+    ax.legend(loc="lower center", bbox_to_anchor=(0.45, 1.02), ncol=ncol, frameon=False,
+              handlelength=2.0, columnspacing=1.2, handletextpad=0.5)
+    ax.xaxis.set_major_locator(MaxNLocator(5))
+    ax.yaxis.set_major_locator(MaxNLocator(5))
+    ax.xaxis.set_minor_locator(AutoMinorLocator(2))
+    ax.yaxis.set_minor_locator(AutoMinorLocator(2))
+    ax.tick_params(which="minor", direction="out", length=2, width=0.5)
+    ax.grid(True, which="major", linestyle=":", linewidth=0.4, alpha=0.4)
+    for sp in ax.spines.values():
+        sp.set_linewidth(0.8)
+    fig.tight_layout()
+    return fig
+
+
+fig_1a = error_fig(err,  0, r"$e_h$",              4)
+fig_1b = error_fig(err,  1, r"$e_\alpha$",         6)
+fig_1c = error_fig(derr, 0, r"$e_{\dot{h}}$",      6)
+fig_1d = error_fig(derr, 1, r"$e_{\dot{\alpha}}$", 4)
+
+
+# ======================================================================
+# Relative L2 errors vs noise level
+# ======================================================================
+def rel_l2(ref, pred):
+    return (torch.linalg.norm(ref - pred, dim=0) / torch.linalg.norm(ref, dim=0)).detach().cpu().numpy()
+
+rel     = np.stack([rel_l2(u_exac_tensor,     U_pred[c])  for c in cases])   # (6, 2)
+rel_dot = np.stack([rel_l2(u_exac_dot_tensor, dU_pred[c]) for c in cases])
+
+rel_l2_h,     rel_l2_alpha     = rel[:, 0],     rel[:, 1]
+rel_l2_h_dot, rel_l2_alpha_dot = rel_dot[:, 0], rel_dot[:, 1]
+
+noise = np.array([0, 1, 5, 10, 15, 20])
+
+
+# ======================================================================
+# Figure 2a
+# ======================================================================
+fig_2a = plt.figure(figsize=(3.35, 2.7)); ax_2a = fig_2a.add_subplot()
+fig_2a.subplots_adjust(left=0.18, bottom=0.18)
+
+ax_2a.plot(noise, rel_l2_h,         color="#009E73", label=r"$h$",
+           lw=1.2, ls="--", zorder=3, marker="o", markersize=2)
+ax_2a.plot(noise, rel_l2_alpha,     color="#0072B2", label=r"$\alpha$",
+           lw=1.2, ls="-",  zorder=3, marker="s", markersize=2)
+ax_2a.plot(noise, rel_l2_h_dot,     color="#D55E00", label=r"$\dot{h}$",
+           lw=1.2, ls="-.", zorder=3, marker="^", markersize=2)
+ax_2a.plot(noise, rel_l2_alpha_dot, color="#4D4D4D", label=r"$\dot{\alpha}$",
+           lw=1.2, ls=":",  zorder=3, marker="d", markersize=2)
+
+ax_2a.set_xlim([0, 20])
+ax_2a.set_xlabel(r"$\sigma (\%)$")
+ax_2a.set_ylabel(r"Relative $L_2$ Error")
+ax_2a.tick_params(direction="out", length=4, width=0.8)
+ax_2a.legend(loc="lower center", bbox_to_anchor=(0.45, 1.02), ncol=4, frameon=False,
+             handlelength=2.0, columnspacing=1.2, handletextpad=0.5)
+ax_2a.xaxis.set_major_locator(MaxNLocator(4))
+ax_2a.yaxis.set_major_locator(MaxNLocator(5))
+ax_2a.xaxis.set_minor_locator(AutoMinorLocator(2))
+ax_2a.yaxis.set_minor_locator(AutoMinorLocator(2))
+ax_2a.tick_params(which="minor", direction="out", length=2, width=0.5)
+ax_2a.grid(True, which="major", linestyle=":", linewidth=0.4, alpha=0.4)
+for sp in ax_2a.spines.values():
+    sp.set_linewidth(0.8)
+fig_2a.tight_layout()
+
+
+# ======================================================================
+# Save, then show
+# ======================================================================
+for name, f in [("Ex2_fig_1a", fig_1a), ("Ex2_fig_1b", fig_1b),
+                ("Ex2_fig_1c", fig_1c), ("Ex2_fig_1d", fig_1d),
+                ("Ex2_fig_2a", fig_2a)]:
+    save(f, name)
+
+plt.show()
